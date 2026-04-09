@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Shift Mobile",
+    "slug": "shift-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F7F6"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.shiftmobile"
+    },
+    "android": {
+      "package": "com.example.shiftmobile"
+    },
+    "plugins": [
+      "expo-linking"
+    ]
+  }
+}
