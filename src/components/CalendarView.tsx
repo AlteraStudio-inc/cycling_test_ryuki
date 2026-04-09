@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar } from "react-native-calendars";
+import { Calendar, DateData } from "react-native-calendars";
 import { colors } from "@/theme/colors";
 
 type Props = {
@@ -30,7 +30,7 @@ export function CalendarView({ selectedDate, markedDates, onDayPress }: Props) {
         textMonthFontSize: 18,
         textDayHeaderFontSize: 13
       }}
-      onDayPress={(day) => onDayPress?.(day.dateString)}
+      onDayPress={(day: DateData) => onDayPress?.(day.dateString)}
     />
   );
 }

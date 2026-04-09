@@ -21,7 +21,7 @@ export function FormInput(props: Props) {
         onChangeText={props.onChangeText}
         placeholder={props.placeholder}
         secureTextEntry={props.secureTextEntry}
-        style={[styles.input, props.error && styles.inputError]}
+        style={[styles.input, !!props.error && styles.inputError]}
         placeholderTextColor={colors.subtext}
       />
       {props.error ? <Text style={styles.error}>{props.error}</Text> : null}
