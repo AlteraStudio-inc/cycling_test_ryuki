@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
 
 export function useBootstrapAuth() {
-  const { setSession, setProfile, setBootstrapping } = useAuthStore();
+  const { setSession, setProfile, setBootstrapping, setAuthError } = useAuthStore();
 
   useEffect(() => {
     const client = supabase;
@@ -12,6 +12,7 @@ export function useBootstrapAuth() {
       setSession(null);
       setProfile(null);
       setBootstrapping(false);
+      setAuthError("[SUPABASE_NOT_CONFIGURED]");
       return;
     }
 
@@ -30,15 +31,24 @@ export function useBootstrapAuth() {
         setSession(session);
 
         if (session?.user) {
-          const { data } = await client
+          const { data, error } = await client
             .from("profiles")
             .select("id, role, name, employee_code, phone, department, status")
             .eq("id", session.user.id)
-            .single();
+            .maybeSingle();
 
           if (mounted) {
             setProfile(data ?? null);
+            if (error) {
+              setAuthError(`[PROFILE_FETCH_ERROR] ${error.code ?? error.message}`);
+            } else if (!data) {
+              setAuthError("[PROFILE_NOT_FOUND]");
+            } else {
+              setAuthError(null);
+            }
           }
+        } else {
+          setAuthError(null);
         }
       } finally {
         if (mounted) {
@@ -54,15 +64,23 @@ export function useBootstrapAuth() {
         setSession(session);
 
         if (session?.user) {
-          const { data } = await client
+          const { data, error } = await client
             .from("profiles")
             .select("id, role, name, employee_code, phone, department, status")
             .eq("id", session.user.id)
-            .single();
+            .maybeSingle();
 
           setProfile(data ?? null);
+          if (error) {
+            setAuthError(`[PROFILE_FETCH_ERROR] ${error.code ?? error.message}`);
+          } else if (!data) {
+            setAuthError("[PROFILE_NOT_FOUND]");
+          } else {
+            setAuthError(null);
+          }
         } else {
           setProfile(null);
+          setAuthError(null);
         }
 
         setBootstrapping(false);
@@ -73,5 +91,5 @@ export function useBootstrapAuth() {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [setBootstrapping, setProfile, setSession]);
+  }, [setAuthError, setBootstrapping, setProfile, setSession]);
 }

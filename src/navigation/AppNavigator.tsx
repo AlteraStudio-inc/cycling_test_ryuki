@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
 import { SplashScreen } from "@/screens/common/SplashScreen";
 import { SettingsScreen } from "@/screens/common/SettingsScreen";
+import { ProfileMissingScreen } from "@/screens/common/ProfileMissingScreen";
 import { AdminHomeScreen } from "@/screens/admin/AdminHomeScreen";
 import { EmployeesScreen } from "@/screens/admin/EmployeesScreen";
 import { ShiftCalendarScreen } from "@/screens/admin/ShiftCalendarScreen";
@@ -13,7 +14,6 @@ import { EmployeeHomeScreen } from "@/screens/employee/EmployeeHomeScreen";
 import { MyShiftScreen } from "@/screens/employee/MyShiftScreen";
 import { EmployeeChatScreen } from "@/screens/employee/EmployeeChatScreen";
 import { AnnouncementsScreen } from "@/screens/employee/AnnouncementsScreen";
-import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { useBootstrapAuth } from "@/hooks/useBootstrapAuth";
 import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
@@ -36,11 +36,31 @@ function AdminTabs() {
         tabBarStyle: { height: 72, paddingTop: 8, paddingBottom: 10 }
       }}
     >
-      <Tab.Screen name="Home" component={AdminHomeScreen} options={{ title: "ホーム", tabBarIcon: tabIcon("home") }} />
-      <Tab.Screen name="Shifts" component={ShiftCalendarScreen} options={{ title: "シフト", tabBarIcon: tabIcon("calendar") }} />
-      <Tab.Screen name="Employees" component={EmployeesScreen} options={{ title: "従業員", tabBarIcon: tabIcon("people") }} />
-      <Tab.Screen name="Chat" component={AdminChatScreen} options={{ title: "チャット", tabBarIcon: tabIcon("chatbubbles") }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: "設定", tabBarIcon: tabIcon("settings") }} />
+      <Tab.Screen
+        name="Home"
+        component={AdminHomeScreen}
+        options={{ title: "ホーム", tabBarIcon: tabIcon("home") }}
+      />
+      <Tab.Screen
+        name="Shifts"
+        component={ShiftCalendarScreen}
+        options={{ title: "シフト", tabBarIcon: tabIcon("calendar") }}
+      />
+      <Tab.Screen
+        name="Employees"
+        component={EmployeesScreen}
+        options={{ title: "従業員", tabBarIcon: tabIcon("people") }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={AdminChatScreen}
+        options={{ title: "チャット", tabBarIcon: tabIcon("chatbubbles") }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: "設定", tabBarIcon: tabIcon("settings") }}
+      />
     </Tab.Navigator>
   );
 }
@@ -55,18 +75,38 @@ function EmployeeTabs() {
         tabBarStyle: { height: 72, paddingTop: 8, paddingBottom: 10 }
       }}
     >
-      <Tab.Screen name="EmployeeHome" component={EmployeeHomeScreen} options={{ title: "ホーム", tabBarIcon: tabIcon("home") }} />
-      <Tab.Screen name="MyShift" component={MyShiftScreen} options={{ title: "シフト", tabBarIcon: tabIcon("calendar") }} />
-      <Tab.Screen name="EmployeeChat" component={EmployeeChatScreen} options={{ title: "チャット", tabBarIcon: tabIcon("chatbubbles") }} />
-      <Tab.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: "お知らせ", tabBarIcon: tabIcon("notifications") }} />
-      <Tab.Screen name="EmployeeSettings" component={SettingsScreen} options={{ title: "設定", tabBarIcon: tabIcon("settings") }} />
+      <Tab.Screen
+        name="EmployeeHome"
+        component={EmployeeHomeScreen}
+        options={{ title: "ホーム", tabBarIcon: tabIcon("home") }}
+      />
+      <Tab.Screen
+        name="MyShift"
+        component={MyShiftScreen}
+        options={{ title: "シフト", tabBarIcon: tabIcon("calendar") }}
+      />
+      <Tab.Screen
+        name="EmployeeChat"
+        component={EmployeeChatScreen}
+        options={{ title: "チャット", tabBarIcon: tabIcon("chatbubbles") }}
+      />
+      <Tab.Screen
+        name="Announcements"
+        component={AnnouncementsScreen}
+        options={{ title: "お知らせ", tabBarIcon: tabIcon("notifications") }}
+      />
+      <Tab.Screen
+        name="EmployeeSettings"
+        component={SettingsScreen}
+        options={{ title: "設定", tabBarIcon: tabIcon("settings") }}
+      />
     </Tab.Navigator>
   );
 }
 
 export function AppNavigator() {
   useBootstrapAuth();
-  const { isBootstrapping, session, profile } = useAuthStore();
+  const { isBootstrapping, session, profile, authError } = useAuthStore();
 
   if (isBootstrapping) {
     return <SplashScreen />;
@@ -81,7 +121,11 @@ export function AppNavigator() {
   }
 
   if (!profile) {
-    return <LoadingOverlay message="プロフィールを取得しています..." />;
+    return (
+      <NavigationContainer>
+        <ProfileMissingScreen userId={session.user.id} errorCode={authError} />
+      </NavigationContainer>
+    );
   }
 
   return (

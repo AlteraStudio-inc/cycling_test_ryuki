@@ -6,9 +6,11 @@ type AuthState = {
   session: Session | null;
   profile: Profile | null;
   isBootstrapping: boolean;
+  authError: string | null;
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
   setBootstrapping: (value: boolean) => void;
+  setAuthError: (value: string | null) => void;
 };
 
 const AuthStoreContext = createContext<AuthState | null>(null);
@@ -17,6 +19,7 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isBootstrapping, setBootstrapping] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   return (
     <AuthStoreContext.Provider
@@ -24,9 +27,11 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
         session,
         profile,
         isBootstrapping,
+        authError,
         setSession,
         setProfile,
-        setBootstrapping
+        setBootstrapping,
+        setAuthError
       }}
     >
       {children}
