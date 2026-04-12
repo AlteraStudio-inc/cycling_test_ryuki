@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppNavigator } from "@/navigation/AppNavigator";
+import { AuthStoreProvider } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 
 const queryClient = new QueryClient();
@@ -74,10 +75,12 @@ export default function App() {
     <GestureHandlerRootView style={rootStyle}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
-          <AppErrorBoundary>
-            <AppNavigator />
-          </AppErrorBoundary>
+          <AuthStoreProvider>
+            <StatusBar style="dark" />
+            <AppErrorBoundary>
+              <AppNavigator />
+            </AppErrorBoundary>
+          </AuthStoreProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
