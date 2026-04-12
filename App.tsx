@@ -10,6 +10,20 @@ import { colors } from "@/theme/colors";
 
 const queryClient = new QueryClient();
 
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  document.documentElement.style.height = "100%";
+  document.body.style.height = "100%";
+  document.body.style.margin = "0";
+
+  const root = document.getElementById("root");
+  if (root) {
+    root.style.height = "100%";
+    root.style.width = "100%";
+    root.style.display = "flex";
+    root.style.flex = "1";
+  }
+}
+
 type ErrorBoundaryState = {
   hasError: boolean;
   message: string;
@@ -28,16 +42,21 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
     };
   }
 
+  override componentDidCatch(error: Error) {
+    console.error("App runtime error:", error);
+  }
+
   override render() {
     if (this.state.hasError) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>画面の描画に失敗しました</Text>
-          <Text style={styles.errorMessage}>
-            {this.state.message}
+          <Text style={styles.errorTitle}>Render failed on web</Text>
+          <Text style={styles.errorMessage}>{this.state.message}</Text>
+          <Text style={styles.errorHint}>
+            Open browser DevTools Console and share the error message.
           </Text>
           <Text style={styles.errorHint}>
-            ブラウザの開発者ツール Console のエラー内容を共有してください。
+            Restart dev server and hard refresh with Ctrl + F5.
           </Text>
         </View>
       );
