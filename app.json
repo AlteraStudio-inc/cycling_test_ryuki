@@ -18,6 +18,9 @@
     },
     "android": {
       "package": "com.example.shiftmobile"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
