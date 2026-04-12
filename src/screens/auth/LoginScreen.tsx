@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { FormInput } from "@/components/FormInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
@@ -15,6 +15,11 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!supabase) {
+      setError("Supabase設定が未完了です。.envにURLとANON KEYを設定してください。");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -41,6 +46,9 @@ export function LoginScreen() {
           subtitle="管理者・従業員どちらも同じ画面からログインできます"
         />
         <View style={styles.form}>
+          {!isSupabaseConfigured ? (
+            <ErrorBanner message="Supabase未設定です。.envを作成してEXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEYを設定してください。" />
+          ) : null}
           <FormInput
             label="メールアドレス"
             value={email}
@@ -58,7 +66,7 @@ export function LoginScreen() {
           <PrimaryButton
             label={loading ? "ログイン中..." : "ログイン"}
             onPress={handleLogin}
-            disabled={loading || !email || !password}
+            disabled={loading || !email || !password || !isSupabaseConfigured}
           />
         </View>
       </View>

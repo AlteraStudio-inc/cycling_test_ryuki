@@ -2,12 +2,18 @@ import React from "react";
 import { Alert, ScrollView, StyleSheet } from "react-native";
 import { Header } from "@/components/Header";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { supabase } from "@/lib/supabase";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
 export function SettingsScreen() {
   const handleLogout = async () => {
+    if (!supabase) {
+      Alert.alert("設定不足", "Supabase設定が未完了です。");
+      return;
+    }
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       Alert.alert("ログアウト失敗", error.message);
@@ -17,6 +23,9 @@ export function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Header title="設定" subtitle="アカウントと通知設定を管理します" />
+      {!isSupabaseConfigured ? (
+        <ErrorBanner message="Supabase未設定のため、認証系機能は利用できません。" />
+      ) : null}
       <PrimaryButton label="ログアウト" onPress={handleLogout} variant="danger" />
     </ScrollView>
   );
