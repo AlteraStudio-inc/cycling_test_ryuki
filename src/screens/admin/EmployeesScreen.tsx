@@ -24,7 +24,6 @@ import { spacing } from "@/theme/spacing";
 
 const PROFILE_COLUMNS =
   "id, role, name, employee_code, phone, department, status";
-const REQUEST_TIMEOUT_MS = 30000;
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -55,21 +54,11 @@ function formatMutationError(message: string) {
   return `操作に失敗しました: ${message}`;
 }
 
-function withTimeout<T>(promise: PromiseLike<T>): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("REQUEST_TIMEOUT")), REQUEST_TIMEOUT_MS)
-    )
-  ]);
-}
-
 export function EmployeesScreen() {
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isTimedOut, setIsTimedOut] = useState(false);
 
   /* Modal state — null = add mode, Profile = edit mode */
   const [editingEmployee, setEditingEmployee] = useState<Profile | null>(null);
@@ -85,7 +74,6 @@ export function EmployeesScreen() {
     if (!supabase) {
       setEmployees([]);
       setError("Supabase設定を確認してください。");
-      setIsTimedOut(false);
       setIsLoading(false);
       return;
     }
@@ -94,37 +82,22 @@ export function EmployeesScreen() {
       if (refresh) setIsRefreshing(true);
       else setIsLoading(true);
 
-      const { data, error: fetchError } = await withTimeout(
-        supabase
-          .from("profiles")
-          .select(PROFILE_COLUMNS)
-          .eq("role", "employee")
-          .order("name", { ascending: true })
-          .then((r) => ({
-            data: (r.data ?? null) as Profile[] | null,
-            error: r.error ? { message: r.error.message } : null
-          }))
-      );
+      const result = await supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS)
+        .eq("role", "employee")
+        .order("name", { ascending: true });
 
-      if (fetchError) {
+      if (result.error) {
         setEmployees([]);
-        setError(`従業員の取得に失敗しました: ${fetchError.message}`);
-        setIsTimedOut(false);
+        setError(`従業員の取得に失敗しました: ${result.error.message}`);
         return;
       }
-      setEmployees(data ?? []);
+      setEmployees((result.data ?? []) as Profile[]);
       setError(null);
-      setIsTimedOut(false);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : "Unknown error";
-      if (msg.includes("REQUEST_TIMEOUT")) {
-        setEmployees([]);
-        setError(null);
-        setIsTimedOut(true);
-      } else {
-        setError(`従業員の取得に失敗しました: ${msg}`);
-        setIsTimedOut(false);
-      }
+      setError(`従業員の取得に失敗しました: ${msg}`);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -195,36 +168,34 @@ export function EmployeesScreen() {
     setIsSaving(true);
     setFormError(null);
     try {
-      const { data, error: insertError } = await withTimeout(
-        supabase
-          .from("profiles")
-          .insert({
-            id: userId,
-            role: "employee",
-            name,
-            employee_code: form.employeeCode.trim() || null,
-            phone: form.phone.trim() || null,
-            status: "active"
-          })
-          .select(PROFILE_COLUMNS)
-          .single()
-          .then((r) => ({
-            data: (r.data ?? null) as Profile | null,
-            error: r.error ? { message: r.error.message } : null
-          }))
-      );
+      const result = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          role: "employee",
+          name,
+          employee_code: form.employeeCode.trim() || null,
+          phone: form.phone.trim() || null,
+          status: "active"
+        })
+        .select(PROFILE_COLUMNS)
+        .single();
 
-      if (insertError) { setFormError(formatMutationError(insertError.message)); return; }
+      if (result.error) {
+        setFormError(formatMutationError(result.error.message));
+        return;
+      }
+
+      const data = result.data as Profile | null;
       if (!data) { setFormError("従業員の追加に失敗しました。"); return; }
 
       setEmployees((cur) => [...cur, data].sort((a, b) => a.name.localeCompare(b.name)));
       setError(null);
-      setIsTimedOut(false);
       setModalVisible(false);
       setForm(EMPTY_FORM);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : "Unknown error";
-      setFormError(msg.includes("REQUEST_TIMEOUT") ? `追加処理がタイムアウトしました（30秒超過）。ネットワークを確認してください。 [${msg}]` : formatMutationError(msg));
+      setFormError(`追加に失敗しました: ${msg}`);
     } finally {
       setIsSaving(false);
     }
@@ -240,24 +211,23 @@ export function EmployeesScreen() {
     setIsSaving(true);
     setFormError(null);
     try {
-      const { data, error: updateError } = await withTimeout(
-        supabase
-          .from("profiles")
-          .update({
-            name,
-            employee_code: form.employeeCode.trim() || null,
-            phone: form.phone.trim() || null
-          })
-          .eq("id", editingEmployee.id)
-          .select(PROFILE_COLUMNS)
-          .single()
-          .then((r) => ({
-            data: (r.data ?? null) as Profile | null,
-            error: r.error ? { message: r.error.message } : null
-          }))
-      );
+      const result = await supabase
+        .from("profiles")
+        .update({
+          name,
+          employee_code: form.employeeCode.trim() || null,
+          phone: form.phone.trim() || null
+        })
+        .eq("id", editingEmployee.id)
+        .select(PROFILE_COLUMNS)
+        .single();
 
-      if (updateError) { setFormError(formatMutationError(updateError.message)); return; }
+      if (result.error) {
+        setFormError(formatMutationError(result.error.message));
+        return;
+      }
+
+      const data = result.data as Profile | null;
       if (!data) { setFormError("従業員の更新に失敗しました。"); return; }
 
       setEmployees((cur) =>
@@ -267,7 +237,7 @@ export function EmployeesScreen() {
       setModalVisible(false);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : "Unknown error";
-      setFormError(msg.includes("REQUEST_TIMEOUT") ? `更新処理がタイムアウトしました（30秒超過）。[${msg}]` : formatMutationError(msg));
+      setFormError(`更新に失敗しました: ${msg}`);
     } finally {
       setIsSaving(false);
     }
@@ -339,11 +309,7 @@ export function EmployeesScreen() {
         ListEmptyComponent={
           <EmptyState
             title="従業員がまだいません"
-            description={
-              isTimedOut
-                ? "通信が不安定です。画面を下に引っ張って再読み込みしてください。"
-                : "「従業員を追加」から登録できます。UIDは Authentication > Users の値を使ってください。"
-            }
+            description="「従業員を追加」から登録できます。UIDは Authentication > Users の値を使ってください。"
           />
         }
       />
