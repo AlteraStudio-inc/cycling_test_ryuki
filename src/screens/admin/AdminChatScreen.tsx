@@ -24,12 +24,11 @@ type ChatTab = "global" | "direct";
 export function AdminChatScreen() {
   const [tab, setTab] = useState<ChatTab>("global");
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
-  /* Global chat */
   const [globalMessages, setGlobalMessages] = useState<Message[]>([]);
   const [globalRoomId, setGlobalRoomId] = useState<string | null>(null);
 
-  /* Direct chat */
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
   const [directMessages, setDirectMessages] = useState<Message[]>([]);
@@ -39,114 +38,88 @@ export function AdminChatScreen() {
   const { profile, session } = useAuthStore();
   const scrollRef = useRef<ScrollView>(null);
 
-  const myId = useMemo(
-    () => profile?.id ?? session?.user.id ?? "",
-    [profile?.id, session?.user.id]
-  );
+  const myId = useMemo(() => profile?.id ?? session?.user.id ?? "", [profile?.id, session?.user.id]);
 
-  /* ── Load global room ── */
+  /* ── Load via RPC ── */
   useEffect(() => {
     if (!supabase) { setLoaded(true); return; }
     (async () => {
-      const { data: room } = await supabase
-        .from("chat_rooms").select("id").eq("room_type", "global").maybeSingle();
-      if (room) {
-        setGlobalRoomId(room.id);
-        const { data: msgs } = await supabase
-          .from("messages").select("*").eq("room_id", room.id).order("created_at", { ascending: true });
+      const [roomRes, empRes] = await Promise.all([
+        supabase.rpc("get_global_room_id"),
+        supabase.rpc("admin_list_employees")
+      ]);
+
+      const roomId = roomRes.data as string | null;
+      if (roomId) {
+        setGlobalRoomId(roomId);
+        const { data: msgs } = await supabase.rpc("get_room_messages", { p_room_id: roomId });
         setGlobalMessages((msgs ?? []) as Message[]);
       }
-
-      const { data: emps } = await supabase
-        .from("profiles").select("id, role, name, employee_code, phone, department, status")
-        .eq("role", "employee").order("name");
-      setEmployees((emps ?? []) as Profile[]);
+      setEmployees((empRes.data ?? []) as Profile[]);
       setLoaded(true);
     })();
   }, []);
 
-  /* ── Realtime for global ── */
-  useEffect(() => {
-    const client = supabase;
-    if (!client || !globalRoomId) return;
-    const ch = client.channel("admin-global-chat")
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "messages",
-        filter: `room_id=eq.${globalRoomId}`
-      }, (p) => {
-        setGlobalMessages((c) => [...c, p.new as Message]);
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-      })
-      .subscribe();
-    return () => { client.removeChannel(ch); };
-  }, [globalRoomId]);
-
-  /* ── Load direct room when employee selected ── */
+  /* ── Select employee for direct chat ── */
   const selectEmployee = useCallback(async (emp: Profile) => {
     setSelectedEmployee(emp);
     setDirectMessages([]);
     setDirectRoomId(null);
     if (!supabase) return;
 
-    /* Find existing direct room */
-    const { data: rooms } = await supabase
-      .from("direct_room_members").select("room_id").eq("user_id", emp.id);
-    if (rooms && rooms.length > 0) {
-      const roomId = rooms[0].room_id;
-      setDirectRoomId(roomId);
-      const { data: msgs } = await supabase
-        .from("messages").select("*").eq("room_id", roomId).order("created_at", { ascending: true });
+    const { data: roomId } = await supabase.rpc("find_or_create_direct_room", {
+      p_admin_id: myId,
+      p_employee_id: emp.id
+    });
+
+    if (roomId) {
+      setDirectRoomId(roomId as string);
+      const { data: msgs } = await supabase.rpc("get_room_messages", { p_room_id: roomId });
       setDirectMessages((msgs ?? []) as Message[]);
     }
-  }, []);
-
-  /* ── Create direct room if needed ── */
-  const ensureDirectRoom = useCallback(async (): Promise<string | null> => {
-    if (directRoomId) return directRoomId;
-    if (!supabase || !selectedEmployee) return null;
-
-    const { data: room, error } = await supabase
-      .from("chat_rooms").insert({ room_type: "direct" }).select("id").single();
-    if (error || !room) return null;
-
-    await supabase.from("direct_room_members").insert([
-      { room_id: room.id, user_id: myId },
-      { room_id: room.id, user_id: selectedEmployee.id }
-    ]);
-    setDirectRoomId(room.id);
-    return room.id;
-  }, [directRoomId, selectedEmployee, myId]);
+  }, [myId]);
 
   /* ── Send message ── */
   const handleSend = useCallback(async () => {
     const content = message.trim();
-    if (!content || !supabase) {
-      Alert.alert("送信できません", "メッセージを入力してください。");
+    if (!content || !supabase || sending) {
+      if (!content) Alert.alert("送信できません", "メッセージを入力してください。");
       return;
     }
 
-    if (tab === "global") {
-      if (!globalRoomId) return;
-      setMessage("");
-      await supabase.from("messages").insert({ room_id: globalRoomId, sender_id: myId, content });
-    } else {
-      const roomId = await ensureDirectRoom();
-      if (!roomId) return;
-      setMessage("");
-      const { data } = await supabase.from("messages")
-        .insert({ room_id: roomId, sender_id: myId, content })
-        .select("*").single();
-      if (data) setDirectMessages((c) => [...c, data as Message]);
+    setSending(true);
+    setMessage("");
+
+    try {
+      if (tab === "global" && globalRoomId) {
+        const { data } = await supabase.rpc("send_message", {
+          p_room_id: globalRoomId,
+          p_sender_id: myId,
+          p_content: content
+        });
+        if (data) setGlobalMessages((c) => [...c, data as Message]);
+      } else if (tab === "direct" && directRoomId) {
+        const { data } = await supabase.rpc("send_message", {
+          p_room_id: directRoomId,
+          p_sender_id: myId,
+          p_content: content
+        });
+        if (data) setDirectMessages((c) => [...c, data as Message]);
+      }
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } finally {
+      setSending(false);
     }
-  }, [message, tab, globalRoomId, myId, ensureDirectRoom]);
+  }, [message, tab, globalRoomId, directRoomId, myId, sending]);
 
   const currentMessages = tab === "global" ? globalMessages : directMessages;
+
+  if (!loaded) return null;
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <Header title="チャット" />
 
-      {/* Tab toggle */}
       <View style={styles.tabRow}>
         <Pressable style={[styles.tabBtn, tab === "global" && styles.tabActive]} onPress={() => setTab("global")}>
           <Text style={[styles.tabText, tab === "global" && styles.tabTextActive]}>全体チャット</Text>
@@ -156,8 +129,7 @@ export function AdminChatScreen() {
         </Pressable>
       </View>
 
-      {/* Direct: employee selector */}
-      {tab === "direct" && !selectedEmployee && loaded && (
+      {tab === "direct" && !selectedEmployee && (
         <ScrollView style={styles.empList} contentContainerStyle={styles.empListContent}>
           {employees.length === 0 ? (
             <EmptyState title="従業員がいません" description="従業員を登録してください。" />
@@ -178,7 +150,6 @@ export function AdminChatScreen() {
         </Pressable>
       )}
 
-      {/* Messages */}
       {(tab === "global" || selectedEmployee) && (
         <>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
@@ -204,15 +175,12 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary },
   tabText: { fontSize: 14, fontWeight: "700", color: colors.subtext },
   tabTextActive: { color: "#fff" },
-
   empList: { flex: 1 },
   empListContent: { gap: spacing.sm, paddingBottom: spacing.xl },
   empItem: { backgroundColor: colors.surface, borderRadius: 14, padding: spacing.lg, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   empName: { fontSize: 16, fontWeight: "700", color: colors.text },
   empSub: { fontSize: 13, color: colors.subtext },
-
   backBtn: { paddingVertical: spacing.sm },
   backText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
-
   messages: { flexGrow: 1, gap: spacing.md, paddingBottom: spacing.md }
 });

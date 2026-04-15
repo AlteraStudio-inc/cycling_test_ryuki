@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { Header } from "@/components/Header";
 import { EmptyState } from "@/components/EmptyState";
 import { supabase } from "@/lib/supabase";
+import { fmtTime } from "@/lib/formatTime";
 import type { Shift, Profile } from "@/types/app";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
@@ -61,7 +62,7 @@ export function AdminHomeScreen() {
               <Text style={styles.staffName}>{s.employeeName}</Text>
               <Text style={styles.staffType}>{s.shift_type}</Text>
             </View>
-            <Text style={styles.staffTime}>{s.start_time} - {s.end_time}</Text>
+            <Text style={styles.staffTime}>{fmtTime(s.start_time)} - {fmtTime(s.end_time)}</Text>
           </View>
         ))
       )}

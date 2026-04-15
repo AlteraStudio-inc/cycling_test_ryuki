@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Shift } from "@/types/app";
+import { fmtTime } from "@/lib/formatTime";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
@@ -13,7 +14,7 @@ export function ShiftCard({ shift }: Props) {
     <View style={styles.card}>
       <Text style={styles.date}>{shift.shift_date}</Text>
       <Text style={styles.time}>
-        {shift.start_time} - {shift.end_time}
+        {fmtTime(shift.start_time)} - {fmtTime(shift.end_time)}
       </Text>
       <Text style={styles.type}>{shift.shift_type}</Text>
       {shift.note ? <Text style={styles.note}>{shift.note}</Text> : null}

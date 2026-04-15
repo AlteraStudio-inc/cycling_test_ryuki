@@ -112,10 +112,9 @@ export function EmployeeLoginScreen() {
                 onPress={() => handleSelect(emp)}
               >
                 <Text style={styles.employeeName}>{emp.name}</Text>
-                <Text style={styles.employeeMeta}>
-                  {emp.department ?? "部署未設定"}
-                  {emp.employee_code ? ` / ${emp.employee_code}` : ""}
-                </Text>
+                {emp.employee_code ? (
+                  <Text style={styles.employeeMeta}>{emp.employee_code}</Text>
+                ) : null}
               </Pressable>
             ))}
           </ScrollView>
@@ -135,7 +134,7 @@ export function EmployeeLoginScreen() {
             <View style={styles.confirmProfile}>
               <Text style={styles.confirmName}>{selected?.name}</Text>
               <Text style={styles.confirmMeta}>
-                部署: {selected?.department ?? "未設定"}
+                社員コード: {selected?.employee_code ?? "未設定"}
               </Text>
               <Text style={styles.confirmMeta}>
                 社員コード: {selected?.employee_code ?? "未設定"}

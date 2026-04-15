@@ -20,6 +20,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
 import type { Profile, Shift } from "@/types/app";
+import { fmtTime } from "@/lib/formatTime";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
@@ -33,6 +34,7 @@ const TIME_OPTIONS = [
   "13:00","14:00","15:00","16:00","17:00","18:00","19:00",
   "20:00","21:00","22:00"
 ];
+const END_TIME_OPTIONS = [...TIME_OPTIONS, "LAST"];
 
 /* ── helpers ── */
 function weekDates(base: string) {
@@ -121,7 +123,7 @@ export function ShiftCalendarScreen() {
       employee_id: pickedEmployee.id,
       shift_date: modalDate,
       start_time: pickedStart,
-      end_time: pickedEnd,
+      end_time: pickedEnd === "LAST" ? "23:59" : pickedEnd,
       shift_type: pickedType,
       created_by: profile.id
     });
@@ -152,7 +154,7 @@ export function ShiftCalendarScreen() {
       <View key={date}>
         {list.map((s) => (
           <Pressable key={s.id} onPress={() => handleDelete(s.id)} style={styles.shiftRow}>
-            <Text style={styles.shiftTime}>{s.start_time}-{s.end_time}</Text>
+            <Text style={styles.shiftTime}>{fmtTime(s.start_time)}-{fmtTime(s.end_time)}</Text>
             <Text style={styles.shiftName}>{employeeName(s.employee_id)}</Text>
             <Text style={styles.shiftType}>{s.shift_type}</Text>
           </Pressable>
@@ -226,7 +228,7 @@ export function ShiftCalendarScreen() {
                   </View>
                   {dayShifts.map((s) => (
                     <Pressable key={s.id} onPress={() => handleDelete(s.id)} style={styles.weekShiftRow}>
-                      <Text style={styles.shiftTime}>{s.start_time}-{s.end_time}</Text>
+                      <Text style={styles.shiftTime}>{fmtTime(s.start_time)}-{fmtTime(s.end_time)}</Text>
                       <Text style={styles.shiftName}>{employeeName(s.employee_id)}</Text>
                       <Text style={styles.shiftType}>{s.shift_type}</Text>
                     </Pressable>
@@ -292,7 +294,7 @@ export function ShiftCalendarScreen() {
                   <Text style={styles.fieldLabel}>終了時間</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.chipRow}>
-                      {TIME_OPTIONS.map((t) => (
+                      {END_TIME_OPTIONS.map((t) => (
                         <Pressable key={t} style={[styles.chip, pickedEnd === t && styles.chipActive]} onPress={() => setPickedEnd(t)}>
                           <Text style={[styles.chipText, pickedEnd === t && styles.chipTextActive]}>{t}</Text>
                         </Pressable>
@@ -303,7 +305,7 @@ export function ShiftCalendarScreen() {
                   <View style={styles.modalActions}>
                     <PrimaryButton label="戻る" onPress={() => setStep("employee")} variant="secondary" />
                     <PrimaryButton label="確認へ" onPress={() => {
-                      if (pickedStart >= pickedEnd) { setSaveError("終了時間は開始時間より後にしてください。"); return; }
+                      if (pickedEnd !== "LAST" && pickedStart >= pickedEnd) { setSaveError("終了時間は開始時間より後にしてください。"); return; }
                       setSaveError(null);
                       setStep("confirm");
                     }} />
@@ -320,7 +322,7 @@ export function ShiftCalendarScreen() {
                     <Text style={styles.confirmRow}>日付: {dayjs(modalDate).format("M月D日 (ddd)")}</Text>
                     <Text style={styles.confirmRow}>従業員: {pickedEmployee?.name}</Text>
                     <Text style={styles.confirmRow}>業務: {pickedType}</Text>
-                    <Text style={styles.confirmRow}>時間: {pickedStart} - {pickedEnd}</Text>
+                    <Text style={styles.confirmRow}>時間: {fmtTime(pickedStart)} - {fmtTime(pickedEnd)}</Text>
                   </View>
                   {saveError ? <ErrorBanner message={saveError} /> : null}
                   <View style={styles.modalActions}>
@@ -338,8 +340,8 @@ export function ShiftCalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.lg, gap: spacing.sm },
-  scroll: { gap: spacing.md, paddingBottom: spacing.xxl },
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md, gap: spacing.xs },
+  scroll: { gap: spacing.sm, paddingBottom: spacing.lg },
   toggleRow: { flexDirection: "row", gap: spacing.sm },
   toggleBtn: {
     flex: 1, paddingVertical: spacing.sm, borderRadius: 12,
@@ -355,7 +357,7 @@ const styles = StyleSheet.create({
   weekNav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   weekArrow: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   weekTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
-  weekDay: { backgroundColor: colors.surface, borderRadius: 16, padding: spacing.md, gap: spacing.xs },
+  weekDay: { backgroundColor: colors.surface, borderRadius: 12, padding: spacing.sm, gap: 2 },
   weekDayToday: { borderWidth: 2, borderColor: colors.primary },
   weekDayHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   weekDayLabel: { fontSize: 14, fontWeight: "700", color: colors.text },
@@ -364,7 +366,7 @@ const styles = StyleSheet.create({
   weekShiftRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.xs },
 
   /* shift rows */
-  shiftRow: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: 12, padding: spacing.md, alignItems: "center" },
+  shiftRow: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: 10, padding: spacing.sm, alignItems: "center" },
   shiftTime: { fontSize: 13, fontWeight: "700", color: colors.text, minWidth: 90 },
   shiftName: { fontSize: 14, color: colors.text, flex: 1 },
   shiftType: { fontSize: 12, color: colors.primary, fontWeight: "700" },
