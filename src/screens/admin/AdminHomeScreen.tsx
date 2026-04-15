@@ -50,8 +50,13 @@ export function AdminHomeScreen() {
       <Header title="稼働状況" subtitle={dayjs().format("YYYY年M月D日 (ddd)")} />
 
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryValue}>{staffShifts.length}</Text>
-        <Text style={styles.summaryLabel}>本日の稼働スタッフ数</Text>
+        <Text style={styles.summaryValue}>{staffShifts.length}名</Text>
+        <Text style={styles.summaryLabel}>本日の稼働スタッフ</Text>
+        {staffShifts.length > 0 && (
+          <Text style={styles.summaryNames}>
+            {[...new Set(staffShifts.map((s) => s.employeeName))].join("、")}
+          </Text>
+        )}
       </View>
 
       {staffShifts.length === 0 ? (
@@ -92,6 +97,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: "#ffffffcc",
     fontSize: 14
+  },
+  summaryNames: {
+    color: "#ffffffdd",
+    fontSize: 13,
+    marginTop: 4,
+    textAlign: "center"
   },
   staffRow: {
     backgroundColor: colors.surface,
