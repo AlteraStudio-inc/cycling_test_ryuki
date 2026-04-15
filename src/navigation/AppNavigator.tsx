@@ -35,7 +35,9 @@ function AdminTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.subtext,
-        tabBarStyle: { height: 72, paddingTop: 8, paddingBottom: 10 }
+        tabBarStyle: { height: 64, paddingTop: 6, paddingBottom: 8 },
+        tabBarLabelStyle: { fontSize: 10 },
+        tabBarIconStyle: { marginBottom: -2 }
       }}
     >
       <Tab.Screen
@@ -74,7 +76,9 @@ function EmployeeTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.subtext,
-        tabBarStyle: { height: 72, paddingTop: 8, paddingBottom: 10 }
+        tabBarStyle: { height: 64, paddingTop: 6, paddingBottom: 8 },
+        tabBarLabelStyle: { fontSize: 10 },
+        tabBarIconStyle: { marginBottom: -2 }
       }}
     >
       <Tab.Screen

@@ -13,7 +13,6 @@ export function EmployeeCard({ employee, onPress }: Props) {
   const content = (
     <View style={styles.card}>
       <Text style={styles.name}>{employee.name}</Text>
-      <Text style={styles.meta}>{employee.department || "未設定"}</Text>
       <Text style={styles.meta}>
         社員コード: {employee.employee_code || "未設定"}
       </Text>

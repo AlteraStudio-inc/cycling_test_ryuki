@@ -1,30 +1,35 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Header } from "@/components/Header";
-import { supabase } from "@/lib/supabase";
 import dayjs from "dayjs";
+import { Header } from "@/components/Header";
+import { EmptyState } from "@/components/EmptyState";
+import { supabase } from "@/lib/supabase";
+import type { Shift, Profile } from "@/types/app";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
+type StaffShift = Shift & { employeeName: string };
+
 export function AdminHomeScreen() {
-  const [todayShifts, setTodayShifts] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [employeeCount, setEmployeeCount] = useState(0);
+  const [staffShifts, setStaffShifts] = useState<StaffShift[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!supabase) return;
     const today = dayjs().format("YYYY-MM-DD");
 
-    const [shiftsRes, messagesRes, employeesRes] = await Promise.all([
-      supabase.from("shifts").select("id", { count: "exact", head: true }).eq("shift_date", today),
-      supabase.from("messages").select("id", { count: "exact", head: true }).eq("read_flag", false),
-      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "employee")
+    const [shiftsRes, empRes] = await Promise.all([
+      supabase.from("shifts").select("*").eq("shift_date", today).order("start_time"),
+      supabase.from("profiles").select("id, name").eq("role", "employee")
     ]);
 
-    setTodayShifts(shiftsRes.count ?? 0);
-    setUnreadMessages(messagesRes.count ?? 0);
-    setEmployeeCount(employeesRes.count ?? 0);
+    const shifts = (shiftsRes.data ?? []) as Shift[];
+    const employees = (empRes.data ?? []) as Pick<Profile, "id" | "name">[];
+    const nameMap = new Map(employees.map((e) => [e.id, e.name]));
+
+    setStaffShifts(
+      shifts.map((s) => ({ ...s, employeeName: nameMap.get(s.employee_id) ?? "不明" }))
+    );
   }, []);
 
   useEffect(() => { void loadStats(); }, [loadStats]);
@@ -40,19 +45,26 @@ export function AdminHomeScreen() {
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
-      <Header title="ダッシュボード" subtitle="今日のシフト、未読連絡、従業員の状態をまとめて確認" />
-      <View style={styles.card}>
-        <Text style={styles.value}>{todayShifts}</Text>
-        <Text style={styles.label}>本日のシフト件数</Text>
+      <Header title="稼働状況" subtitle={dayjs().format("YYYY年M月D日 (ddd)")} />
+
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryValue}>{staffShifts.length}</Text>
+        <Text style={styles.summaryLabel}>本日の稼働スタッフ数</Text>
       </View>
-      <View style={styles.card}>
-        <Text style={styles.value}>{unreadMessages}</Text>
-        <Text style={styles.label}>未読メッセージ</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.value}>{employeeCount}</Text>
-        <Text style={styles.label}>登録従業員数</Text>
-      </View>
+
+      {staffShifts.length === 0 ? (
+        <EmptyState title="本日のシフトはありません" description="シフト管理から登録してください。" />
+      ) : (
+        staffShifts.map((s) => (
+          <View key={s.id} style={styles.staffRow}>
+            <View style={styles.staffInfo}>
+              <Text style={styles.staffName}>{s.employeeName}</Text>
+              <Text style={styles.staffType}>{s.shift_type}</Text>
+            </View>
+            <Text style={styles.staffTime}>{s.start_time} - {s.end_time}</Text>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -60,22 +72,50 @@ export function AdminHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
-    padding: spacing.xl,
-    gap: spacing.lg
+    padding: spacing.lg,
+    gap: spacing.md
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
+  summaryCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
     padding: spacing.xl,
-    gap: spacing.xs
+    gap: spacing.xs,
+    alignItems: "center"
   },
-  value: {
-    fontSize: 30,
+  summaryValue: {
+    fontSize: 36,
     fontWeight: "800",
+    color: "#fff"
+  },
+  summaryLabel: {
+    color: "#ffffffcc",
+    fontSize: 14
+  },
+  staffRow: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.lg,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  staffInfo: {
+    gap: spacing.xs,
+    flex: 1
+  },
+  staffName: {
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.text
   },
-  label: {
-    color: colors.subtext,
-    fontSize: 14
+  staffType: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "600"
+  },
+  staffTime: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text
   }
 });

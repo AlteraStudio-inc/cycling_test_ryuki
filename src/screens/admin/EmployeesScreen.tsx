@@ -24,7 +24,7 @@ import { spacing } from "@/theme/spacing";
 
 const PROFILE_COLUMNS =
   "id, role, name, employee_code, phone, department, status";
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 30000;
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -33,15 +33,13 @@ type EmployeeForm = {
   name: string;
   employeeCode: string;
   phone: string;
-  department: string;
 };
 
 const EMPTY_FORM: EmployeeForm = {
   userId: "",
   name: "",
   employeeCode: "",
-  phone: "",
-  department: ""
+  phone: ""
 };
 
 function formatMutationError(message: string) {
@@ -167,8 +165,7 @@ export function EmployeesScreen() {
       userId: employee.id,
       name: employee.name,
       employeeCode: employee.employee_code ?? "",
-      phone: employee.phone ?? "",
-      department: employee.department ?? ""
+      phone: employee.phone ?? ""
     });
     setFormError(null);
     setModalVisible(true);
@@ -207,7 +204,6 @@ export function EmployeesScreen() {
             name,
             employee_code: form.employeeCode.trim() || null,
             phone: form.phone.trim() || null,
-            department: form.department.trim() || null,
             status: "active"
           })
           .select(PROFILE_COLUMNS)
@@ -228,7 +224,7 @@ export function EmployeesScreen() {
       setForm(EMPTY_FORM);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : "Unknown error";
-      setFormError(msg.includes("REQUEST_TIMEOUT") ? "追加処理がタイムアウトしました。" : formatMutationError(msg));
+      setFormError(msg.includes("REQUEST_TIMEOUT") ? `追加処理がタイムアウトしました（30秒超過）。ネットワークを確認してください。 [${msg}]` : formatMutationError(msg));
     } finally {
       setIsSaving(false);
     }
@@ -250,8 +246,7 @@ export function EmployeesScreen() {
           .update({
             name,
             employee_code: form.employeeCode.trim() || null,
-            phone: form.phone.trim() || null,
-            department: form.department.trim() || null
+            phone: form.phone.trim() || null
           })
           .eq("id", editingEmployee.id)
           .select(PROFILE_COLUMNS)
@@ -272,7 +267,7 @@ export function EmployeesScreen() {
       setModalVisible(false);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : "Unknown error";
-      setFormError(msg.includes("REQUEST_TIMEOUT") ? "更新処理がタイムアウトしました。" : formatMutationError(msg));
+      setFormError(msg.includes("REQUEST_TIMEOUT") ? `更新処理がタイムアウトしました（30秒超過）。[${msg}]` : formatMutationError(msg));
     } finally {
       setIsSaving(false);
     }
@@ -301,7 +296,7 @@ export function EmployeesScreen() {
 
       if (Platform.OS === "web") {
         const action = window.prompt(
-          `${employee.name}\n部署: ${employee.department || "未設定"}\n社員コード: ${employee.employee_code || "未設定"}\n\n「edit」で編集、「delete」で削除`,
+          `${employee.name}\n社員コード: ${employee.employee_code || "未設定"}\n\n「edit」で編集、「delete」で削除`,
           "edit"
         );
         if (action === "edit") handleEditPress(employee);
@@ -309,7 +304,7 @@ export function EmployeesScreen() {
         return;
       }
 
-      Alert.alert("従業員詳細", `${employee.name}\n部署: ${employee.department || "未設定"}\n社員コード: ${employee.employee_code || "未設定"}`, [
+      Alert.alert("従業員詳細", `${employee.name}\n社員コード: ${employee.employee_code || "未設定"}`, [
         { text: "閉じる", style: "cancel" },
         { text: "編集", onPress: () => handleEditPress(employee) },
         { text: "削除", style: "destructive", onPress: confirmDelete }
@@ -393,12 +388,6 @@ export function EmployeesScreen() {
                 value={form.employeeCode}
                 onChangeText={(v) => handleChangeForm("employeeCode", v)}
                 placeholder="例: E001"
-              />
-              <FormInput
-                label="部署"
-                value={form.department}
-                onChangeText={(v) => handleChangeForm("department", v)}
-                placeholder="例: ホール"
               />
               <FormInput
                 label="電話番号"
