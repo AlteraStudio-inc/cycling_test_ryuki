@@ -20,11 +20,12 @@ export function AdminHomeScreen() {
     const today = dayjs().format("YYYY-MM-DD");
 
     const [shiftsRes, empRes] = await Promise.all([
-      supabase.from("shifts").select("*").eq("shift_date", today).order("start_time"),
-      supabase.from("profiles").select("id, name").eq("role", "employee")
+      supabase.rpc("admin_list_shifts"),
+      supabase.rpc("admin_list_employees")
     ]);
 
-    const shifts = (shiftsRes.data ?? []) as Shift[];
+    const allShifts = (shiftsRes.data ?? []) as Shift[];
+    const shifts = allShifts.filter((s) => s.shift_date === today);
     const employees = (empRes.data ?? []) as Pick<Profile, "id" | "name">[];
     const nameMap = new Map(employees.map((e) => [e.id, e.name]));
 

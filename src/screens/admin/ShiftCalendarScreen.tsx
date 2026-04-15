@@ -30,9 +30,11 @@ type ViewMode = "week" | "month";
 
 const SHIFT_TYPES = ["バッテリー交換", "シェア配送"];
 const TIME_OPTIONS = [
-  "06:00","07:00","08:00","09:00","10:00","11:00","12:00",
-  "13:00","14:00","15:00","16:00","17:00","18:00","19:00",
-  "20:00","21:00","22:00"
+  "06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30",
+  "10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30",
+  "14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30",
+  "18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30",
+  "22:00","22:30","23:00","23:30"
 ];
 const END_TIME_OPTIONS = [...TIME_OPTIONS, "LAST"];
 
@@ -71,9 +73,8 @@ export function ShiftCalendarScreen() {
     if (!refresh) setLoading(true);
 
     const [shiftsRes, empRes] = await Promise.all([
-      supabase.from("shifts").select("*").order("shift_date").order("start_time"),
-      supabase.from("profiles").select("id, role, name, employee_code, phone, department, status")
-        .eq("role", "employee").order("name")
+      supabase.rpc("admin_list_shifts"),
+      supabase.rpc("admin_list_employees")
     ]);
     setShifts((shiftsRes.data ?? []) as Shift[]);
     setEmployees((empRes.data ?? []) as Profile[]);
@@ -119,13 +120,13 @@ export function ShiftCalendarScreen() {
     if (!supabase || !pickedEmployee || !profile) return;
     setSaving(true);
     setSaveError(null);
-    const { error } = await supabase.from("shifts").insert({
-      employee_id: pickedEmployee.id,
-      shift_date: modalDate,
-      start_time: pickedStart,
-      end_time: pickedEnd === "LAST" ? "23:59" : pickedEnd,
-      shift_type: pickedType,
-      created_by: profile.id
+    const { error } = await supabase.rpc("admin_add_shift", {
+      p_employee_id: pickedEmployee.id,
+      p_shift_date: modalDate,
+      p_start_time: pickedStart,
+      p_end_time: pickedEnd === "LAST" ? "23:59" : pickedEnd,
+      p_shift_type: pickedType,
+      p_created_by: profile.id
     });
     setSaving(false);
     if (error) {
@@ -141,7 +142,7 @@ export function ShiftCalendarScreen() {
   /* ── Delete shift ── */
   const handleDelete = async (shiftId: string) => {
     if (!supabase) return;
-    await supabase.from("shifts").delete().eq("id", shiftId);
+    await supabase.rpc("admin_delete_shift", { p_id: shiftId });
     void loadData(true);
   };
 
