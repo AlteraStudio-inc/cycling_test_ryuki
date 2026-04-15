@@ -305,7 +305,7 @@ export function ShiftCalendarScreen() {
                   <View style={styles.modalActions}>
                     <PrimaryButton label="戻る" onPress={() => setStep("employee")} variant="secondary" />
                     <PrimaryButton label="確認へ" onPress={() => {
-                      if (pickedEnd !== "LAST" && pickedStart >= pickedEnd) { setSaveError("終了時間は開始時間より後にしてください。"); return; }
+                      if (pickedStart === pickedEnd) { setSaveError("開始と終了が同じ時間です。"); return; }
                       setSaveError(null);
                       setStep("confirm");
                     }} />
@@ -322,7 +322,10 @@ export function ShiftCalendarScreen() {
                     <Text style={styles.confirmRow}>日付: {dayjs(modalDate).format("M月D日 (ddd)")}</Text>
                     <Text style={styles.confirmRow}>従業員: {pickedEmployee?.name}</Text>
                     <Text style={styles.confirmRow}>業務: {pickedType}</Text>
-                    <Text style={styles.confirmRow}>時間: {fmtTime(pickedStart)} - {fmtTime(pickedEnd)}</Text>
+                    <Text style={styles.confirmRow}>
+                      時間: {fmtTime(pickedStart)} - {fmtTime(pickedEnd)}
+                      {pickedEnd !== "LAST" && pickedStart >= pickedEnd ? "（翌日まで）" : ""}
+                    </Text>
                   </View>
                   {saveError ? <ErrorBanner message={saveError} /> : null}
                   <View style={styles.modalActions}>
