@@ -10,6 +10,7 @@ import {
   supabaseConfigStatus
 } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
+import type { AppMode } from "@/hooks/useAppMode";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
@@ -28,13 +29,19 @@ function getConfigErrorMessage() {
   }
 }
 
-export function LoginScreen() {
+type Props = {
+  mode: AppMode;
+};
+
+export function LoginScreen({ mode }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { authError } = useAuthStore();
   const configErrorMessage = useMemo(() => getConfigErrorMessage(), []);
+
+  const isAdmin = mode === "admin";
 
   const handleLogin = async () => {
     if (!supabase) {
@@ -45,13 +52,35 @@ export function LoginScreen() {
     setLoading(true);
     setError("");
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
     if (signInError) {
       setError(signInError.message);
+      setLoading(false);
+      return;
+    }
+
+    /* After successful sign-in, verify role matches the current mode */
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profile && profile.role !== mode) {
+        await supabase.auth.signOut();
+        setError(
+          isAdmin
+            ? "このアカウントは管理者権限がありません。"
+            : "このアカウントは従業員用ではありません。"
+        );
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(false);
@@ -64,18 +93,17 @@ export function LoginScreen() {
     >
       <View style={styles.content}>
         <Header
-          title="ログイン"
-          subtitle="管理者・従業員どちらも同じ画面からログインできます"
+          title={isAdmin ? "管理者ログイン" : "従業員ログイン"}
+          subtitle={
+            isAdmin
+              ? "管理者アカウントでログインしてください"
+              : "従業員アカウントでログインしてください"
+          }
         />
         <View style={styles.form}>
           {!isSupabaseConfigured ? (
             <ErrorBanner
               message={`${configErrorMessage} Restart required: npm run dev`}
-            />
-          ) : null}
-          {!isSupabaseConfigured ? (
-            <ErrorBanner
-              message={`diagnostic: code=${supabaseConfigStatus.code}, url=${supabaseConfigStatus.hasUrl ? "set" : "empty"}, key=${supabaseConfigStatus.keyPreview}`}
             />
           ) : null}
           {authError ? <ErrorBanner message={`auth: ${authError}`} /> : null}
