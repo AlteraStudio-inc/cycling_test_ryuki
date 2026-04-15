@@ -169,10 +169,33 @@ export function useBootstrapAuth() {
       }
     );
 
+    /* Subscribe to realtime profile changes so admin edits propagate instantly */
+    const profileChannel = client
+      .channel("profile-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        (payload) => {
+          if (!mounted) return;
+          const currentUser = pendingUser;
+          if (!currentUser) return;
+
+          if (payload.eventType === "UPDATE" && payload.new?.id === currentUser.id) {
+            setProfile(payload.new as any);
+          }
+          if (payload.eventType === "DELETE" && payload.old?.id === currentUser.id) {
+            setProfile(null);
+            setAuthError("[PROFILE_DELETED]");
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       clearTimeout(timeoutId);
       authListener.subscription.unsubscribe();
+      client.removeChannel(profileChannel);
     };
   }, [setAuthError, setBootstrapping, setProfile, setSession]);
 }
