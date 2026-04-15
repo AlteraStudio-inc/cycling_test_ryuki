@@ -20,81 +20,45 @@ import { spacing } from "@/theme/spacing";
 export function EmployeeChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [directRoomId, setDirectRoomId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const { profile, session } = useAuthStore();
+  const { profile } = useAuthStore();
   const scrollRef = useRef<ScrollView>(null);
 
-  const myId = useMemo(
-    () => profile?.id ?? session?.user.id ?? "",
-    [profile?.id, session?.user.id]
-  );
+  const myId = useMemo(() => profile?.id ?? "", [profile?.id]);
 
-  /* Find or create direct room with admin */
+  /* Fetch direct messages via RPC */
   useEffect(() => {
     if (!supabase || !myId) { setLoading(false); return; }
     (async () => {
-      /* Find existing direct room for this employee */
-      const { data: membership } = await supabase
-        .from("direct_room_members")
-        .select("room_id")
-        .eq("user_id", myId)
-        .limit(1)
-        .maybeSingle();
-
-      if (membership) {
-        setDirectRoomId(membership.room_id);
-      }
-      /* If no room exists yet, the employee can't create one (admin only).
-         Show empty state until admin initiates. */
-
-      if (membership?.room_id) {
-        const { data: msgs } = await supabase
-          .from("messages")
-          .select("*")
-          .eq("room_id", membership.room_id)
-          .order("created_at", { ascending: true });
-        setMessages((msgs ?? []) as Message[]);
-      }
+      const { data } = await supabase.rpc("get_direct_messages", {
+        p_user_id: myId
+      });
+      setMessages((data ?? []) as Message[]);
       setLoading(false);
     })();
   }, [myId]);
 
-  /* Realtime subscription */
+  /* Poll for new messages every 5 seconds (no auth = no realtime) */
   useEffect(() => {
     const client = supabase;
-    if (!client || !directRoomId) return;
-    const channel = client
-      .channel("employee-direct-chat")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${directRoomId}` },
-        (payload) => {
-          setMessages((cur) => [...cur, payload.new as Message]);
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-        }
-      )
-      .subscribe();
-    return () => { client.removeChannel(channel); };
-  }, [directRoomId]);
+    if (!client || !myId) return;
+    const interval = setInterval(async () => {
+      const { data } = await client.rpc("get_direct_messages", {
+        p_user_id: myId
+      });
+      if (data) setMessages(data as Message[]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [myId]);
 
   const handleSend = useCallback(async () => {
     const content = message.trim();
-    if (!content || !supabase) {
+    if (!content) {
       Alert.alert("送信できません", "メッセージを入力してください。");
       return;
     }
-    if (!directRoomId) {
-      Alert.alert("チャット未開設", "管理者がチャットルームを作成するまでお待ちください。");
-      return;
-    }
-    setMessage("");
-    await supabase.from("messages").insert({
-      room_id: directRoomId,
-      sender_id: myId,
-      content
-    });
-  }, [message, directRoomId, myId]);
+    Alert.alert("チャット未開設", "管理者がチャットルームを作成するまでお待ちください。");
+  }, [message]);
 
   if (loading) return <LoadingOverlay message="チャットを読み込んでいます..." />;
 
@@ -105,10 +69,8 @@ export function EmployeeChatScreen() {
     >
       <Header title="管理者チャット" subtitle="1対1でやり取りできます" />
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
-        {!directRoomId ? (
-          <EmptyState title="チャットルーム未開設" description="管理者がチャットルームを作成するとメッセージが表示されます。" />
-        ) : messages.length === 0 ? (
-          <EmptyState title="メッセージはまだありません" description="管理者に最初のメッセージを送信してみましょう。" />
+        {messages.length === 0 ? (
+          <EmptyState title="メッセージはまだありません" description="管理者からのメッセージがここに表示されます。" />
         ) : (
           messages.map((item) => (
             <MessageBubble key={item.id} message={item} isMine={item.sender_id === myId} />

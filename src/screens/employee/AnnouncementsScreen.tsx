@@ -14,40 +14,11 @@ export function AnnouncementsScreen() {
 
   const loadAnnouncements = useCallback(async () => {
     if (!supabase) return;
-
-    /* Get global room */
-    const { data: room } = await supabase
-      .from("chat_rooms")
-      .select("id")
-      .eq("room_type", "global")
-      .single();
-    if (!room) return;
-
-    const { data: msgs } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("room_id", room.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    setMessages((msgs ?? []) as Message[]);
+    const { data } = await supabase.rpc("get_global_messages");
+    setMessages((data ?? []) as Message[]);
   }, []);
 
   useEffect(() => { void loadAnnouncements(); }, [loadAnnouncements]);
-
-  /* Realtime for new announcements */
-  useEffect(() => {
-    const client = supabase;
-    if (!client) return;
-    const channel = client
-      .channel("announcements-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => void loadAnnouncements()
-      )
-      .subscribe();
-    return () => { client.removeChannel(channel); };
-  }, [loadAnnouncements]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

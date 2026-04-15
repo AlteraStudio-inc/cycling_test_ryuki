@@ -17,16 +17,12 @@ export function EmployeeHomeScreen() {
 
   const loadShifts = useCallback(async () => {
     if (!supabase || !profile) return;
+    const { data } = await supabase.rpc("get_employee_shifts", {
+      p_employee_id: profile.id
+    });
+    const all = (data ?? []) as Shift[];
     const today = dayjs().format("YYYY-MM-DD");
-    const { data } = await supabase
-      .from("shifts")
-      .select("*")
-      .eq("employee_id", profile.id)
-      .gte("shift_date", today)
-      .order("shift_date", { ascending: true })
-      .order("start_time", { ascending: true })
-      .limit(5);
-    setShifts((data ?? []) as Shift[]);
+    setShifts(all.filter((s) => s.shift_date >= today).slice(0, 5));
   }, [profile]);
 
   useEffect(() => { void loadShifts(); }, [loadShifts]);
@@ -44,14 +40,12 @@ export function EmployeeHomeScreen() {
     >
       <Header title="ホーム" subtitle={`${profile?.name ?? ""}さん、お疲れ様です`} />
 
-      {/* Profile info card */}
       <View style={styles.profileCard}>
         <Text style={styles.profileName}>{profile?.name}</Text>
         <Text style={styles.profileMeta}>部署: {profile?.department ?? "未設定"}</Text>
         <Text style={styles.profileMeta}>社員コード: {profile?.employee_code ?? "未設定"}</Text>
       </View>
 
-      {/* Upcoming shifts */}
       <Text style={styles.sectionTitle}>今後の勤務予定</Text>
       {shifts.length === 0 ? (
         <EmptyState title="予定されたシフトはありません" description="管理者からシフトが登録されるとここに表示されます。" />

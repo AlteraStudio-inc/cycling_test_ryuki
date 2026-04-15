@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
+import { EmployeeLoginScreen } from "@/screens/auth/EmployeeLoginScreen";
 import { SplashScreen } from "@/screens/common/SplashScreen";
 import { SettingsScreen } from "@/screens/common/SettingsScreen";
 import { ProfileMissingScreen } from "@/screens/common/ProfileMissingScreen";
@@ -18,11 +19,6 @@ import { useBootstrapAuth } from "@/hooks/useBootstrapAuth";
 import { getAppMode } from "@/hooks/useAppMode";
 import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
-import { ErrorBanner } from "@/components/ErrorBanner";
-import { StyleSheet, Text, View } from "react-native";
-import { PrimaryButton } from "@/components/PrimaryButton";
-import { supabase } from "@/lib/supabase";
-import { spacing } from "@/theme/spacing";
 
 const Tab = createBottomTabNavigator();
 
@@ -110,55 +106,21 @@ function EmployeeTabs() {
   );
 }
 
-/** Shown when a logged-in user's role doesn't match the URL mode */
-function RoleMismatchScreen() {
-  const appMode = useMemo(() => getAppMode(), []);
-  const handleLogout = async () => {
-    await supabase?.auth.signOut();
-  };
-  return (
-    <View style={mismatchStyles.container}>
-      <ErrorBanner
-        message={
-          appMode === "admin"
-            ? "このアカウントは管理者権限がありません。正しいアカウントでログインしてください。"
-            : "このアカウントは従業員用ではありません。正しいURLからログインしてください。"
-        }
-      />
-      <PrimaryButton label="ログアウト" onPress={handleLogout} variant="danger" />
-    </View>
-  );
-}
-
-const mismatchStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: "center",
-    padding: spacing.xl,
-    gap: spacing.lg
-  }
-});
-
-export function AppNavigator() {
+/* ─── Admin flow: uses Supabase auth ─── */
+function AdminApp() {
   useBootstrapAuth();
   const { isBootstrapping, session, profile, authError } = useAuthStore();
-  const appMode = useMemo(() => getAppMode(), []);
 
-  if (isBootstrapping) {
-    return <SplashScreen />;
-  }
+  if (isBootstrapping) return <SplashScreen />;
 
-  /* Not logged in → show mode-specific login */
   if (!session) {
     return (
       <NavigationContainer>
-        <LoginScreen mode={appMode} />
+        <LoginScreen mode="admin" />
       </NavigationContainer>
     );
   }
 
-  /* Logged in but no profile */
   if (!profile) {
     return (
       <NavigationContainer>
@@ -167,19 +129,41 @@ export function AppNavigator() {
     );
   }
 
-  /* Role doesn't match the URL mode → block access */
-  if (profile.role !== appMode) {
+  if (profile.role !== "admin") {
     return (
       <NavigationContainer>
-        <RoleMismatchScreen />
+        <LoginScreen mode="admin" />
       </NavigationContainer>
     );
   }
 
-  /* Authorized — show the correct tabs */
   return (
     <NavigationContainer>
-      {appMode === "admin" ? <AdminTabs /> : <EmployeeTabs />}
+      <AdminTabs />
     </NavigationContainer>
   );
+}
+
+/* ─── Employee flow: name select, no Supabase auth ─── */
+function EmployeeApp() {
+  const { profile } = useAuthStore();
+
+  if (!profile || profile.role !== "employee") {
+    return (
+      <NavigationContainer>
+        <EmployeeLoginScreen />
+      </NavigationContainer>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <EmployeeTabs />
+    </NavigationContainer>
+  );
+}
+
+export function AppNavigator() {
+  const appMode = useMemo(() => getAppMode(), []);
+  return appMode === "admin" ? <AdminApp /> : <EmployeeApp />;
 }

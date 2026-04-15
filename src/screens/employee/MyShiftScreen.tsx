@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import dayjs from "dayjs";
 import { CalendarView } from "@/components/CalendarView";
 import { Header } from "@/components/Header";
@@ -15,34 +15,23 @@ export function MyShiftScreen() {
   const { profile } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadShifts = useCallback(async () => {
     if (!supabase || !profile) return;
-    const { data } = await supabase
-      .from("shifts")
-      .select("*")
-      .eq("employee_id", profile.id)
-      .order("shift_date", { ascending: true })
-      .order("start_time", { ascending: true });
+    const { data } = await supabase.rpc("get_employee_shifts", {
+      p_employee_id: profile.id
+    });
     setShifts((data ?? []) as Shift[]);
   }, [profile]);
 
   useEffect(() => { void loadShifts(); }, [loadShifts]);
 
-  /* Realtime subscription for shift changes */
-  useEffect(() => {
-    const client = supabase;
-    if (!client || !profile) return;
-    const channel = client
-      .channel("my-shifts")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "shifts", filter: `employee_id=eq.${profile.id}` },
-        () => void loadShifts()
-      )
-      .subscribe();
-    return () => { client.removeChannel(channel); };
-  }, [profile, loadShifts]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadShifts();
+    setRefreshing(false);
+  }, [loadShifts]);
 
   const markedDates = useMemo(() => {
     const marks: Record<string, { marked: boolean; dotColor: string }> = {};
@@ -58,7 +47,10 @@ export function MyShiftScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+    >
       <Header title="マイシフト" subtitle="自分のシフトを月表示で確認できます" />
       <CalendarView
         selectedDate={selectedDate}
