@@ -22,28 +22,21 @@ import { Profile } from "@/types/app";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 type EmployeeForm = {
-  userId: string;
   name: string;
   employeeCode: string;
   phone: string;
 };
 
 const EMPTY_FORM: EmployeeForm = {
-  userId: "",
   name: "",
   employeeCode: "",
   phone: ""
 };
 
 function formatError(message: string) {
-  if (message.includes("foreign key") || message.includes("violates foreign key"))
-    return "UIDが見つかりません。Supabase Authentication > Users の UID を入力してください。";
   if (message.includes("duplicate key") || message.includes("unique constraint"))
-    return "このUIDまたは社員コードはすでに登録済みです。";
+    return "この社員コードはすでに登録済みです。";
   if (message.includes("row-level security"))
     return "権限エラーです。管理者アカウントでログインし直してください。";
   return `操作に失敗しました: ${message}`;
@@ -92,7 +85,7 @@ export function EmployeesScreen() {
 
   const handleEditPress = useCallback((emp: Profile) => {
     setEditingEmployee(emp);
-    setForm({ userId: emp.id, name: emp.name, employeeCode: emp.employee_code ?? "", phone: emp.phone ?? "" });
+    setForm({ name: emp.name, employeeCode: emp.employee_code ?? "", phone: emp.phone ?? "" });
     setFormError(null);
     setModalVisible(true);
   }, []);
@@ -106,16 +99,13 @@ export function EmployeesScreen() {
   /* ─── Add via RPC ─── */
   const handleSubmitAdd = useCallback(async () => {
     if (!supabase) return;
-    const userId = form.userId.trim();
     const name = form.name.trim();
-    if (!UUID_REGEX.test(userId)) { setFormError("UIDは UUID 形式で入力してください。"); return; }
     if (!name) { setFormError("氏名は必須です。"); return; }
 
     setIsSaving(true);
     setFormError(null);
     try {
       const { data, error: err } = await supabase.rpc("admin_add_employee", {
-        p_id: userId,
         p_name: name,
         p_employee_code: form.employeeCode.trim() || null,
         p_phone: form.phone.trim() || null
@@ -198,7 +188,7 @@ export function EmployeesScreen() {
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void loadEmployees(true)} tintColor={colors.primary} />}
         renderItem={({ item }) => <EmployeeCard employee={item} onPress={() => handleEmployeePress(item)} />}
-        ListEmptyComponent={<EmptyState title="従業員がまだいません" description="「従業員を追加」から登録できます。UIDは Authentication > Users の値を使ってください。" />}
+        ListEmptyComponent={<EmptyState title="従業員がまだいません" description="「従業員を追加」から登録できます。" />}
       />
 
       <Modal visible={isModalVisible} transparent animationType="slide" onRequestClose={closeModal}>
@@ -206,15 +196,7 @@ export function EmployeesScreen() {
           <View style={styles.modalCard}>
             <ScrollView contentContainerStyle={styles.modalContent}>
               <Text style={styles.modalTitle}>{isEditMode ? "従業員を編集" : "従業員を追加"}</Text>
-              {!isEditMode && (
-                <Text style={styles.modalHint}>
-                  先に Supabase の Authentication &gt; Users でユーザーを作成し、その UID を入力してください。
-                </Text>
-              )}
               {formError ? <ErrorBanner message={formError} /> : null}
-              {!isEditMode && (
-                <FormInput label="UID (必須)" value={form.userId} onChangeText={(v) => handleChangeForm("userId", v)} placeholder="例: 49131a3b-bae3-4fda-bebb-b1a1c3a051ee" />
-              )}
               <FormInput label="氏名 (必須)" value={form.name} onChangeText={(v) => handleChangeForm("name", v)} placeholder="例: 山田 太郎" />
               <FormInput label="社員コード" value={form.employeeCode} onChangeText={(v) => handleChangeForm("employeeCode", v)} placeholder="例: E001" />
               <FormInput label="電話番号" value={form.phone} onChangeText={(v) => handleChangeForm("phone", v)} placeholder="例: 09012345678" />
