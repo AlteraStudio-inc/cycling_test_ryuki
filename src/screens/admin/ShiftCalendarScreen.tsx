@@ -282,26 +282,22 @@ export function ShiftCalendarScreen() {
                   </View>
 
                   <Text style={styles.fieldLabel}>開始時間</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.chipRow}>
-                      {TIME_OPTIONS.map((t) => (
-                        <Pressable key={t} style={[styles.chip, pickedStart === t && styles.chipActive]} onPress={() => setPickedStart(t)}>
-                          <Text style={[styles.chipText, pickedStart === t && styles.chipTextActive]}>{t}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
+                  <View style={styles.chipWrap}>
+                    {TIME_OPTIONS.map((t) => (
+                      <Pressable key={t} style={[styles.chip, pickedStart === t && styles.chipActive]} onPress={() => setPickedStart(t)}>
+                        <Text style={[styles.chipText, pickedStart === t && styles.chipTextActive]}>{t}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
 
                   <Text style={styles.fieldLabel}>終了時間</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.chipRow}>
-                      {END_TIME_OPTIONS.map((t) => (
-                        <Pressable key={t} style={[styles.chip, pickedEnd === t && styles.chipActive]} onPress={() => setPickedEnd(t)}>
-                          <Text style={[styles.chipText, pickedEnd === t && styles.chipTextActive]}>{t}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
+                  <View style={styles.chipWrap}>
+                    {END_TIME_OPTIONS.map((t) => (
+                      <Pressable key={t} style={[styles.chip, pickedEnd === t && styles.chipActive]} onPress={() => setPickedEnd(t)}>
+                        <Text style={[styles.chipText, pickedEnd === t && styles.chipTextActive]}>{t}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
 
                   <View style={styles.modalActions}>
                     <PrimaryButton label="戻る" onPress={() => setStep("employee")} variant="secondary" />
@@ -384,6 +380,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: { fontSize: 14, fontWeight: "700", color: colors.subtext, marginTop: spacing.xs },
   chipRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  chipWrap: { flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" },
   chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 14, color: colors.text },
